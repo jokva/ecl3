@@ -8,6 +8,53 @@ extern "C" {
 #endif //__cplusplus
 
 /*
+ * As per the gnu fortran manual, the record byte marker is int32. We could
+ * support 8-byte markers with either compile-time configuration or a run-time
+ * switch
+ *
+ * A Fortran program writes unformatted data to file in a statemente like:
+ *
+ *    integer array(100)
+ *    write(unit) array
+ *
+ * it actually writes a head and tail in addition to the actual data. The
+ * header and tail is a 4 [1] byte integer, which value is the number of bytes
+ * in the immediately following record. I.e. what is actually found on disk
+ * after the Fortran code above is:
+ *
+ *   | 400 | array ...... | 400 |
+ *
+ * [1] http://gcc.gnu.org/onlinedocs/gfortran/File-format-of-unformatted-sequential-files.html
+ */
+
+/*
+ * Copy elems elements of type fmt from memory area src to memory area dst
+ *
+ * This is essentially a memcpy that's endian- and type aware, and translates
+ * to/from on-disk representation of arrays to CPU-native representations.
+ *
+ * Examples
+ * --------
+ * Read an integer array from disk:
+ *
+ *  char head[4], tail[4];
+ *  int32_t elems;
+ *  int32_t* data;
+ *  fread(head, sizeof(head), 1, fp);
+ *  ecl3_get_native(&elems, head, ECL3_INTE, 1);
+ *  elems /= sizeof(int32_t)
+ *  data = malloc(head);
+ *  fread(buffer, sizeof(int32_t), elems, fp);
+ *  ecl3_get_native(data, buffer, ECL3_INTE, elems);
+ *  fread(tail, sizeof(tail), 1, fp);
+ */
+ECL3_API
+int ecl3_get_native(void* dst, const void* src, int fmt, size_t elems);
+
+ECL3_API
+int ecl3_put_native(void* dst, const void* src, int fmt, size_t elems);
+
+/*
  * `Keywords` in ecl3 is the conceptual structure:
  *
  * struct {
@@ -32,9 +79,8 @@ extern "C" {
  * +------------+
  *
  * The header and body are written separately, which means they both come with
- * the Fortran block length metadata, handled by f77. Furthermore, large
- * array bodies are split up into 105-element (for strings) or 1000 element
- * chunks.
+ * the Fortran block length metadata. Furthermore, large array bodies are split
+ * up into 105-element (for strings) or 1000 element chunks.
  *
  * This module provide the functions guide I/O and parse these structures once
  * read from disk
@@ -101,8 +147,7 @@ int ecl3_array_header_size();
  *
  *
  * where |head| and |tail| are record length markers. This function is unaware
- * of the record markers, and assumes they have been dealt with. That
- * functionality is in f77.h
+ * of the record markers, and assumes they have been dealt with.
  *
  * This function faithfully outputs what's actually on disk. To obtain a more
  * practical representation for the array type, use the output type from this
