@@ -37,7 +37,7 @@ void memcpy_bswap64(void* d, const void* s, std::size_t nmemb) noexcept (true) {
     }
 }
 
-#if defined(__BIG_ENDIAN__)
+#if defined(ENDIANNESS_BIG_ENDIAN)
 void memcpy_msb32(void* dst, const void* src, std::size_t nmemb) noexcept (true) {
     if (dst == src) return;
     std::memcpy(dst, src, nmemb * sizeof(std::uint32_t));
@@ -48,7 +48,7 @@ void memcpy_msb64(void* dst, const void* src, std::size_t nmemb) noexcept (true)
     std::memcpy(dst, src, nmemb * sizeof(std::uint64_t));
 }
 
-#elif defined(__LITTLE_ENDIAN__)
+#elif defined(ENDIANNESS_LITTLE_ENDIAN)
 void memcpy_msb32(void* dst, const void* src, std::size_t nmemb) noexcept (true) {
     memcpy_bswap32(dst, src, nmemb);
 }
@@ -58,7 +58,7 @@ void memcpy_msb64(void* dst, const void* src, std::size_t nmemb) noexcept (true)
 }
 
 #else
-    #error "__BIG_ENDIAN__ or __LITTLE_ENDIAN__ must be set"
+    #error "ENDIANNESS_BIG_ENDIAN or ENDIANNESS_LITTLE_ENDIAN must be set"
 #endif
 
 }
