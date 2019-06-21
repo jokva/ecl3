@@ -1,0 +1,118 @@
+version: 2.1
+
+commands:
+  install_cmake:
+    steps:
+      - run:
+          name: install cmake and make
+          command: |
+            apt-get update
+            apt-get install -y cmake g++
+
+  ecl3build:
+    description: ecl3 build steps
+    parameters:
+      type:
+        description: build type
+        type: enum
+        default: Release
+        enum: ["Release", "Debug", "RelWithDebInfo"]
+      scan:
+        description: scan-build or similar command prefix
+        type: string
+        default: ""
+    steps:
+      - run:
+          name: configure
+          command: |
+            mkdir build
+            cd build
+            << parameters.scan >> \
+            cmake -DBUILD_SHARED_LIBS=ON \
+                  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                  -DCMAKE_BUILD_TYPE=<< parameters.type >> \
+                  ..
+      - run:
+          name: build
+          command: cmake --build build
+      - run:
+          name: test
+          command: |
+            cd build
+            ctest --output-on-failure
+
+jobs:
+  gcc:
+    docker:
+      - image: debian:stable
+    steps:
+      - checkout
+      - install_cmake
+      - ecl3build
+
+  clang:
+    docker:
+      - image: debian:stable
+    environment:
+      CC: /usr/bin/clang
+      CXX: /usr/bin/clang++
+    steps:
+      - checkout
+      - install_cmake
+      - run:
+          name: install gcc and clang
+          command: apt-get install -y clang
+      - ecl3build
+
+  debug:
+    docker:
+      - image: debian:stable
+    steps:
+      - checkout
+      - install_cmake
+      - ecl3build:
+          type: Debug
+
+  scan-build:
+    docker:
+      - image: debian:stable
+    steps:
+      - checkout
+      - install_cmake
+      - run:
+          name: install gcc and clang
+          command: apt-get install -y clang libfindbin-libs-perl
+      - ecl3build:
+          scan: scan-build --status-bugs
+
+  cppcheck:
+    docker:
+      - image: ubuntu:latest
+    steps:
+      - checkout
+      - install_cmake
+      - run:
+          name: install cppcheck
+          command: apt-get install -y cppcheck
+      - run:
+          name: run cppcheck
+          command: |
+            cmake . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=OFF
+            cppcheck --enable=style,portability,performance,warning \
+                     --library=posix \
+                     --suppressions-list=cppcheck/suppressions.txt \
+                     --inline-suppr \
+                     --project=compile_commands.json \
+                     --error-exitcode=1
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - gcc
+      - clang
+      - debug
+  static-analysis:
+    jobs:
+      - cppcheck
+      - scan-build
