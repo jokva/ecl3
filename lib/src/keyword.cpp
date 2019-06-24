@@ -180,9 +180,9 @@ int ecl3_typeid(const char* str, int* type) {
         "Implement a fallback for your architecture"
     );
 
-    std::int32_t kw;
-    std::memcpy(&kw, str, sizeof(kw));
-    kw = be32toh(kw);
+    std::int32_t source;
+    std::memcpy(&source, str, sizeof(source));
+    const std::int32_t kw = be32toh(source);
     /*
      * The enum values correspond to the 4 bytes that make up the ascii
      * representation of the type specifier. This means the enum now carries
