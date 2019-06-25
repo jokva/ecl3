@@ -126,29 +126,30 @@ jobs:
                      --inline-suppr \
                      --project=compile_commands.json \
                      --error-exitcode=1
-    python-2.7:
-      docker:
-        - image: circleci/python:2.7
-      steps:
-        - build_python
 
-    python-3.5:
-      docker:
-        - image: circleci/python:3.5
-      steps:
-        - build_python
+  python-2.7:
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - build_python
 
-    python-3.6:
-      docker:
-        - image: circleci/python:3.6
-      steps:
-        - build_python
+  python-3.5:
+    docker:
+      - image: circleci/python:3.5
+    steps:
+      - build_python
 
-    python-3.7:
-      docker:
-        - image: circleci/python:3.7
-      steps:
-        - build_python
+  python-3.6:
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - build_python
+
+  python-3.7:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - build_python
 
 workflows:
   version: 2
