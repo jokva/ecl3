@@ -10,14 +10,22 @@ add_library(ecl3
 )
 add_library(ecl3::ecl3 ALIAS ecl3)
 set_property(TARGET ecl3 PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(ecl3
-    PUBLIC
-        endianness::endianness
-)
 target_include_directories(ecl3
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        # Work-around as described in [1]. Even privately linked interface
+        # libraries must be exported, because cmake does not check if anything
+        # other than include-paths are set. The build-local export file is
+        # given to the python build script, so endianness must also be
+        # exported.
+        #
+        # in time, this hack should go away, either by promotoing endianness to
+        # a library in its own right, or hard-code the include path
+        # (effectively what is done now)
+        # [1] https://gitlab.kitware.com/cmake/cmake/issues/18049
+        $<TARGET_PROPERTY:endianness::endianness,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_compile_options(ecl3
