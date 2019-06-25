@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.5.0)
+project(ecl3-python-extension LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+set(CMAKE_C_VISIBILITY_PRESET   "hidden")
+
+find_package(PythonExtensions REQUIRED)
+find_package(ecl3 REQUIRED)
+
+add_library(core MODULE ecl3/core.cpp)
+target_include_directories(core
+    PRIVATE
+        ${PYBIND11_INCLUDE_DIRS}
+)
+python_extension_module(core)
+target_link_libraries(core ecl3)
+
+if (MSVC)
+    target_compile_options(core
+        BEFORE
+        PRIVATE
+            /EHsc
+    )
+endif ()
+
+install(TARGETS core LIBRARY DESTINATION ecl3)
