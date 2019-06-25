@@ -13,17 +13,30 @@ platform:
 matrix:
     fast_finish: true
 
+environment:
+    matrix:
+        - PYTHON_DIR: "C:\\Python27"
+        - PYTHON_DIR: "C:\\Python35"
+        - PYTHON_DIR: "C:\\Python36"
+        - PYTHON_DIR: "C:\\Python37"
+
 before_build:
+    - set PATH=%PYTHON_DIR%;%PATH%
     - set generator="Visual Studio 14 2015"
-    - IF "%platform%" == "x64" set generator="Visual Studio 14 2015 Win64"
+    - if "%platform%" == "x64" set generator="Visual Studio 14 2015 Win64"
+    - if "%platform%" == "x64" set PYTHON_DIR=%PYTHON_DIR%-x64
     - git fetch --tags
+    - python -m pip install -r python/requirements-dev.txt
 
 build_script:
-    - ps: |
-          mkdir build
-          pushd build
+    - mkdir build
+    - ps: pushd build
     - cmake %APPVEYOR_BUILD_FOLDER%
             -G %generator%
             -DCMAKE_CXX_FLAGS="/D_CRT_SECURE_NO_WARNINGS /EHsc"
-    - cmake --build .  --config %configuration%
+    - cmake --build .  --config %configuration% --target install
     - ctest --build-config %configuration% --output-on-failure
+    - ps: popd
+    - ps: pushd python
+    - python setup.py bdist_wheel -G %generator%
+    - ps: popd

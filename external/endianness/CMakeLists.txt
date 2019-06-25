@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(endianness VERSION 0.1.0)
 
+include(GNUInstallDirs)
+
 add_library(endianness INTERFACE)
 add_library(endianness::endianness ALIAS endianness)
 target_include_directories(endianness

@@ -1,0 +1,7 @@
+scikit-build
+setuptools-scm
+pybind11
+numpy
+pytest
+pytest-runner
+hypothesis

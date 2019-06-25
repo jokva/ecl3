@@ -5,6 +5,8 @@ include(CTest)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
+option(BUILD_PYTHON "Build Python library" ON)
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   set(PEDANTIC_COMPILE_FLAGS -pedantic-errors -Wall -Wextra -pedantic
       -Wold-style-cast -Wundef
@@ -49,3 +51,4 @@ endif ()
 add_subdirectory(external/endianness)
 add_subdirectory(external/catch2)
 add_subdirectory(lib)
+add_subdirectory(python)

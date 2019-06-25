@@ -1,15 +1,49 @@
 version: 2.1
 
 commands:
-  install_cmake:
+  install_build_deps:
+    parameters:
+      sudo:
+        type: boolean
+        default: false
+      extra:
+        type: string
+        default: ""
     steps:
       - run:
-          name: install cmake and make
+          name: install cmake gcc python3
           command: |
-            apt-get update
-            apt-get install -y cmake g++
+            <<#parameters.sudo >> sudo <</parameters.sudo >> apt-get update
+            <<#parameters.sudo >> sudo <</parameters.sudo >> apt-get install \
+            -y cmake g++ python3 python3-pip git << parameters.extra >>
 
-  ecl3build:
+  python_build:
+    steps:
+      - checkout
+      - install_build_deps:
+          sudo: true
+      - run:
+          name: install core
+          command: |
+            mkdir build
+            cd build
+            cmake -DBUILD_SHARED_LIBS=ON \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DBUILD_TESTS=OFF \
+                  -DBUILD_PYTHON=OFF \
+                  ..
+            make
+            sudo make install
+      - run:
+          name: install python dependencies
+          command: python -m pip install --user -r python/requirements-dev.txt
+      - run:
+          name: build python
+          command: |
+            cd python
+            python setup.py build_ext --inplace install --user test
+
+  cmake_build:
     description: ecl3 build steps
     parameters:
       type:
@@ -23,6 +57,9 @@ commands:
         default: ""
     steps:
       - run:
+          name: install python extra
+          command: python3 -m pip install --user -r python/requirements-dev.txt
+      - run:
           name: configure
           command: |
             mkdir build
@@ -31,10 +68,11 @@ commands:
             cmake -DBUILD_SHARED_LIBS=ON \
                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                   -DCMAKE_BUILD_TYPE=<< parameters.type >> \
+                  -DPYTHON_EXECUTABLE=`which python3` \
                   ..
       - run:
-          name: build
-          command: cmake --build build
+          name: build and install
+          command: << parameters.scan >> cmake --build build --target install
       - run:
           name: test
           command: |
@@ -47,8 +85,8 @@ jobs:
       - image: debian:stable
     steps:
       - checkout
-      - install_cmake
-      - ecl3build
+      - install_build_deps
+      - cmake_build
 
   clang:
     docker:
@@ -58,19 +96,17 @@ jobs:
       CXX: /usr/bin/clang++
     steps:
       - checkout
-      - install_cmake
-      - run:
-          name: install gcc and clang
-          command: apt-get install -y clang
-      - ecl3build
+      - install_build_deps:
+          extra: clang
+      - cmake_build
 
   debug:
     docker:
       - image: debian:stable
     steps:
       - checkout
-      - install_cmake
-      - ecl3build:
+      - install_build_deps
+      - cmake_build:
           type: Debug
 
   scan-build:
@@ -78,11 +114,9 @@ jobs:
       - image: debian:stable
     steps:
       - checkout
-      - install_cmake
-      - run:
-          name: install gcc and clang
-          command: apt-get install -y clang libfindbin-libs-perl
-      - ecl3build:
+      - install_build_deps:
+          extra: clang libfindbin-libs-perl
+      - cmake_build:
           scan: scan-build --status-bugs
 
   cppcheck:
@@ -90,10 +124,8 @@ jobs:
       - image: ubuntu:latest
     steps:
       - checkout
-      - install_cmake
-      - run:
-          name: install cppcheck
-          command: apt-get install -y cppcheck
+      - install_build_deps:
+          extra: cppcheck
       - run:
           name: run cppcheck
           command: |
@@ -105,6 +137,30 @@ jobs:
                      --project=compile_commands.json \
                      --error-exitcode=1
 
+  python-27:
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - python_build
+
+  python-35:
+    docker:
+      - image: circleci/python:3.5
+    steps:
+      - python_build
+
+  python-36:
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - python_build
+
+  python-37:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - python_build
+
 workflows:
   version: 2
   build:
@@ -112,7 +168,15 @@ workflows:
       - gcc
       - clang
       - debug
+
   static-analysis:
     jobs:
       - cppcheck
       - scan-build
+
+  python:
+    jobs:
+      - python-27
+      - python-35
+      - python-36
+      - python-37
