@@ -45,6 +45,7 @@ install(
 export(
     TARGETS
         ecl3
+        endianness
     FILE
         ecl3-config.cmake
 )
