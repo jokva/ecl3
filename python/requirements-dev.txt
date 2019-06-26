@@ -3,5 +3,6 @@ setuptools-scm
 pybind11
 numpy
 pytest
+path.py
 pytest-runner
 hypothesis
