@@ -53,6 +53,7 @@ install(
 export(
     TARGETS
         ecl3
+        NAMESPACE ecl3::
     FILE
         ecl3-config.cmake
 )
