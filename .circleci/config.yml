@@ -34,6 +34,7 @@ commands:
                   ..
             make
             sudo make install
+            sudo ldconfig /usr/local/lib
       - run:
           name: install python dependencies
           command: python -m pip install --user -r python/requirements-dev.txt

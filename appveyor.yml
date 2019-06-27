@@ -21,12 +21,12 @@ environment:
         - PYTHON_DIR: "C:\\Python37"
 
 before_build:
-    - set PATH=%PYTHON_DIR%;%PATH%
     - set generator="Visual Studio 14 2015"
     - if "%platform%" == "x64" set generator="Visual Studio 14 2015 Win64"
     - if "%platform%" == "x64" set PYTHON_DIR=%PYTHON_DIR%-x64
-    - git fetch --tags
+    - set PATH=%PYTHON_DIR%;%PATH%
     - python -m pip install -r python/requirements-dev.txt
+    - git fetch --tags
 
 build_script:
     - mkdir build
