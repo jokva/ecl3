@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_library(ecl3
     src/keyword.cpp
+    src/summary.cpp
 )
 add_library(ecl3::ecl3 ALIAS ecl3)
 set_property(TARGET ecl3 PROPERTY POSITION_INDEPENDENT_CODE ON)
