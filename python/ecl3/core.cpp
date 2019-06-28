@@ -55,6 +55,45 @@ array getheader(std::ifstream& fs) {
     return a;
 }
 
+template < typename T >
+void extend(py::list& l, const char* src, int n, T tmp) {
+    for (int i = 0; i < n; ++i) {
+        std::memcpy(&tmp, src + (i * sizeof(T)), sizeof(T));
+        l.append(tmp);
+    }
+}
+
+void extend_char(py::list& l, const char* src, int n) {
+    char tmp[8];
+    for (int i = 0; i < n; ++i) {
+        std::memcpy(tmp, src + (i * sizeof(tmp)), sizeof(tmp));
+        l.append(py::str(tmp, sizeof(tmp)));
+    }
+}
+
+void extend(py::list& l, const char* src, ecl3_typeids type, int count) {
+    switch (type) {
+        case ECL3_INTE:
+            extend(l, src, count, std::int32_t(0));
+            break;
+
+        case ECL3_REAL:
+            extend(l, src, count, float(0));
+            break;
+
+        case ECL3_DOUB:
+            extend(l, src, count, double(0));
+            break;
+
+        case ECL3_CHAR:
+            extend_char(l, src, count);
+            break;
+
+        default:
+            throw std::invalid_argument("unknown type");
+    }
+}
+
 std::vector< array > stream::keywords() {
     std::vector< array > kws;
 
@@ -141,33 +180,7 @@ std::vector< array > stream::keywords() {
                 &count
             );
             remaining -= count;
-
-            for (int i = 0; i < count; ++i) {
-                switch (type) {
-                    case ECL3_INTE:
-                        std::memcpy(&ix, buffer.data() + (i * size), size);
-                        kw.values.append(ix);
-                        break;
-
-                    case ECL3_REAL:
-                        std::memcpy(&fx, buffer.data() + (i * size), size);
-                        kw.values.append(fx);
-                        break;
-
-                    case ECL3_DOUB:
-                        std::memcpy(&dx, buffer.data() + (i * size), size);
-                        kw.values.append(dx);
-                        break;
-
-                    case ECL3_CHAR:
-                        std::memcpy(str, buffer.data() + (i * size), size);
-                        kw.values.append(py::str(str));
-                        break;
-
-                    default:
-                        throw std::invalid_argument("unknown type");
-                }
-            }
+            extend(kw.values, buffer.data(), ecl3_typeids(type), count);
         }
 
         kws.push_back(kw);
