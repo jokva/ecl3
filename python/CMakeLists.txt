@@ -51,7 +51,7 @@ add_custom_target(
         build # setup.py build args
             --cmake-executable ${CMAKE_COMMAND}
             --generator ${CMAKE_GENERATOR}
-            ${ecl3_PYTHON_BUILD_TYPE}
+            ${ECL3_PYTHON_BUILD_TYPE}
         -- # cmake to the extension
             -Decl3_DIR=${ECL3_LIB_BINARY_DIR}
             # "install" to the python/ecl3 dir with rpath, so there's no need
