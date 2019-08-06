@@ -50,6 +50,7 @@ enum ecl3_errno {
     ECL3_OK = 0,
     ECL3_INVALID_ARGS,
     ECL3_UNSUPPORTED,
+    ECL3_TRUNCATED,
 };
 
 #endif //ECL3_COMMON_H

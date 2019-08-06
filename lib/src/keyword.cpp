@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <ciso646>
@@ -576,5 +577,86 @@ const char* ecl3_type_name(int type) {
         default:
             assert(false && "unknown type");
             return nullptr;
+    }
+}
+
+namespace {
+
+const char* skip_array_body(const char* cur,
+                            const std::array< char, 4 >& typestr,
+                            int count) noexcept (false) {
+    int type;
+    const auto err = ecl3_typeid(typestr.data(), &type);
+    if (err) throw std::invalid_argument("");
+
+    int elemsize;
+    int blocksize;
+    ecl3_type_size(type, &elemsize);
+    ecl3_block_size(type, &blocksize);
+
+    while (count > 0) {
+        std::int32_t elems;
+        ecl3_get_native(&elems, cur, ECL3_INTE, 1);
+        /* advance past the header */
+        cur += sizeof(elems);
+        /* skip the body */
+        cur += elems;
+        /* advance past the tail */
+        cur += sizeof(elems);
+
+        count -= std::min(blocksize, elems / elemsize);
+    }
+
+    return cur;
+}
+
+}
+
+int ecl3_build_index(const void* begin,
+                     const void* end,
+                     int limit,
+                     std::size_t* out,
+                     int* nmemb,
+                     const void** next) {
+
+    if (begin >= end) return ECL3_TRUNCATED;
+
+    const auto fst = reinterpret_cast< const char* >(begin);
+    const auto lst = reinterpret_cast< const char* >(end);
+    auto cur = fst;
+
+    auto head = std::array< char, sizeof(std::int32_t) >();
+    auto tail = std::array< char, sizeof(std::int32_t) >();
+    auto name = std::array< char, 8 >();
+    auto type = std::array< char, 4 >();
+    int count;
+
+    while (true) {
+        if (cur > lst)  return ECL3_TRUNCATED;
+        if (cur == lst) return ECL3_OK;
+        if (limit == 0) return ECL3_OK;
+
+        // record the offset
+        *out++ = std::distance(fst, cur);
+        --limit;
+        *nmemb += 1;
+        *next = cur;
+
+        // read parse the header
+        // TODO: check value of head
+        std::memcpy(head.data(), cur, head.size());
+        ecl3_array_header(cur + head.size(),
+                          name.data(),
+                          type.data(),
+                          &count);
+        std::memcpy(tail.data(), cur + 20, tail.size());
+        cur += 24;
+
+        try {
+            cur = skip_array_body(cur, type, count);
+        } catch (std::invalid_argument&) {
+            // TODO: look for more protocol errors?
+            return ECL3_INVALID_ARGS;
+        }
     }
 }
