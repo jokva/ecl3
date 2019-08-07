@@ -252,11 +252,11 @@ int ecl3_array_body(void* dst,
  *
  * This function is particularly useful with memory-mapped files.
  *
- * Use this function to find the offsets of up to nmemb keywords in the range
+ * Use this function to find the offsets of up to count keywords in the range
  * [begin, end). The offset distance(begin, cur). Offsets are written to the
  * output array index, which must be at least limit elements long. The output
  * variable next will be a pointer to the first un-indexed byte when the
- * function returns, and nmemb is incremented once per indexed keyword.
+ * function returns, and count is incremented once per indexed keyword.
  *
  * When the [begin, end) range is exhausted, *next == end.
  *
@@ -269,7 +269,7 @@ int ecl3_build_index(const void* begin,
                      const void* end,
                      int limit,
                      size_t* index,
-                     int* nmemb,
+                     int* count,
                      const void** next);
 
 /*

@@ -597,6 +597,7 @@ const char* skip_array_body(const char* cur,
     while (count > 0) {
         std::int32_t elems;
         ecl3_get_native(&elems, cur, ECL3_INTE, 1);
+        if (elems < 0) throw std::out_of_range("");
         /* advance past the header */
         cur += sizeof(elems);
         /* skip the body */
@@ -616,7 +617,7 @@ int ecl3_build_index(const void* begin,
                      const void* end,
                      int limit,
                      std::size_t* out,
-                     int* nmemb,
+                     int* count,
                      const void** next) {
 
     if (begin >= end) return ECL3_TRUNCATED;
@@ -629,7 +630,7 @@ int ecl3_build_index(const void* begin,
     auto tail = std::array< char, sizeof(std::int32_t) >();
     auto name = std::array< char, 8 >();
     auto type = std::array< char, 4 >();
-    int count;
+    int remaining;
 
     while (true) {
         if (cur > lst)  return ECL3_TRUNCATED;
@@ -637,26 +638,27 @@ int ecl3_build_index(const void* begin,
         if (limit == 0) return ECL3_OK;
 
         // record the offset
-        *out++ = std::distance(fst, cur);
+        if (out) *out++ = std::distance(fst, cur);
         --limit;
-        *nmemb += 1;
-        *next = cur;
 
-        // read parse the header
+        // read the array header
         // TODO: check value of head
         std::memcpy(head.data(), cur, head.size());
         ecl3_array_header(cur + head.size(),
                           name.data(),
                           type.data(),
-                          &count);
+                          &remaining);
         std::memcpy(tail.data(), cur + 20, tail.size());
-        cur += 24;
 
         try {
-            cur = skip_array_body(cur, type, count);
+            cur = skip_array_body(cur + 24, type, remaining);
         } catch (std::invalid_argument&) {
             // TODO: look for more protocol errors?
             return ECL3_INVALID_ARGS;
         }
+
+        /* commit the now-recorded record by updating the next & count */
+        if (next) *next = cur;
+        if (count) *count += 1;
     }
 }
