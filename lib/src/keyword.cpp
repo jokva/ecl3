@@ -582,31 +582,57 @@ const char* ecl3_type_name(int type) {
 
 namespace {
 
-const char* skip_array_body(const char* cur,
-                            const std::array< char, 4 >& typestr,
-                            int count) noexcept (false) {
+struct either {
+    const char* cur = nullptr;
+    ecl3_errno err  = ECL3_OK;
+
+    /*
+     * deliberately implicitly convert from enum/ptr to make return error_code
+     * work
+     */
+    either(const char* x) : cur(x) {}
+    either(ecl3_errno x)  : err(x) {}
+};
+
+either skip_array_body(const char* cur,
+                       const std::array< char, 4 >& typestr,
+                       int count) noexcept (false) {
     int type;
     const auto err = ecl3_typeid(typestr.data(), &type);
-    if (err) throw std::invalid_argument("");
+    if (err) return ECL3_BAD_HEADER;
 
     int elemsize;
-    int blocksize;
     ecl3_type_size(type, &elemsize);
-    ecl3_block_size(type, &blocksize);
 
     while (count > 0) {
-        std::int32_t elems;
-        ecl3_get_native(&elems, cur, ECL3_INTE, 1);
-        if (elems < 0) throw std::out_of_range("");
-        /* advance past the header */
-        cur += sizeof(elems);
-        /* skip the body */
-        cur += elems;
-        /* advance past the tail */
-        cur += sizeof(elems);
+        std::int32_t record_size;
+        ecl3_get_native(&record_size, cur, ECL3_INTE, 1);
+        if (record_size < 0) return ECL3_BAD_BLOCKSIZE;
 
-        count -= std::min(blocksize, elems / elemsize);
+        const auto head = cur;
+        const auto tail = cur + sizeof(record_size) + record_size;
+        if (not std::equal(head, head + sizeof(record_size), tail))
+            return ECL3_INCONSISTENT_BLOCKSIZE;
+
+        /* advance past the header */
+        cur += sizeof(record_size);
+        /* skip the body */
+        cur += record_size;
+        /* advance past the tail */
+        cur += sizeof(record_size);
+
+        if (record_size % elemsize)
+            return ECL3_BAD_HEADER;
+
+        count -= record_size / elemsize;
     }
+
+    /*
+     * there are more elements in the array than what the count in the array
+     * header says
+     */
+    if (count != 0)
+        return ECL3_BAD_BODY;
 
     return cur;
 }
@@ -619,8 +645,10 @@ int ecl3_build_index(const void* begin,
                      std::size_t* out,
                      int* count,
                      const void** next) {
+    assert(begin && "must be non-null");
+    assert(end   && "must be non-null");
 
-    if (begin >= end) return ECL3_TRUNCATED;
+    if (begin > end) return ECL3_INVALID_ARGS;
 
     const auto fst = reinterpret_cast< const char* >(begin);
     const auto lst = reinterpret_cast< const char* >(end);
@@ -641,8 +669,6 @@ int ecl3_build_index(const void* begin,
         if (out) *out++ = std::distance(fst, cur);
         --limit;
 
-        // read the array header
-        // TODO: check value of head
         std::memcpy(head.data(), cur, head.size());
         ecl3_array_header(cur + head.size(),
                           name.data(),
@@ -650,12 +676,16 @@ int ecl3_build_index(const void* begin,
                           &remaining);
         std::memcpy(tail.data(), cur + 20, tail.size());
 
-        try {
-            cur = skip_array_body(cur + 24, type, remaining);
-        } catch (std::invalid_argument&) {
-            // TODO: look for more protocol errors?
-            return ECL3_INVALID_ARGS;
-        }
+        /*
+         * Head and tail records didn't match, so *something* is wrong, meaning
+         * the results from here are unreliable
+         */
+        if (head != tail)
+            return ECL3_INCONSISTENT_BLOCKSIZE;
+
+        const auto skip = skip_array_body(cur + 24, type, remaining);
+        if (skip.err) return skip.err;
+        cur = skip.cur;
 
         /* commit the now-recorded record by updating the next & count */
         if (next) *next = cur;
