@@ -586,12 +586,8 @@ struct either {
     const char* cur = nullptr;
     ecl3_errno err  = ECL3_OK;
 
-    /*
-     * deliberately implicitly convert from enum/ptr to make return error_code
-     * work
-     */
-    either(const char* x) : cur(x) {}
-    either(ecl3_errno x)  : err(x) {}
+    explicit either(const char* x) : cur(x) {}
+    explicit either(ecl3_errno x)  : err(x) {}
 };
 
 either skip_array_body(const char* cur,
@@ -599,7 +595,7 @@ either skip_array_body(const char* cur,
                        int count) noexcept (false) {
     int type;
     const auto err = ecl3_typeid(typestr.data(), &type);
-    if (err) return ECL3_BAD_HEADER;
+    if (err) return either(ECL3_BAD_HEADER);
 
     int elemsize;
     ecl3_type_size(type, &elemsize);
@@ -607,12 +603,12 @@ either skip_array_body(const char* cur,
     while (count > 0) {
         std::int32_t record_size;
         ecl3_get_native(&record_size, cur, ECL3_INTE, 1);
-        if (record_size < 0) return ECL3_BAD_BLOCKSIZE;
+        if (record_size < 0) return either(ECL3_BAD_BLOCKSIZE);
 
         const auto head = cur;
         const auto tail = cur + sizeof(record_size) + record_size;
         if (not std::equal(head, head + sizeof(record_size), tail))
-            return ECL3_INCONSISTENT_BLOCKSIZE;
+            return either(ECL3_INCONSISTENT_BLOCKSIZE);
 
         /* advance past the header */
         cur += sizeof(record_size);
@@ -622,7 +618,7 @@ either skip_array_body(const char* cur,
         cur += sizeof(record_size);
 
         if (record_size % elemsize)
-            return ECL3_BAD_HEADER;
+            return either(ECL3_BAD_HEADER);
 
         count -= record_size / elemsize;
     }
@@ -632,9 +628,9 @@ either skip_array_body(const char* cur,
      * header says
      */
     if (count != 0)
-        return ECL3_BAD_BODY;
+        return either(ECL3_BAD_BODY);
 
-    return cur;
+    return either(cur);
 }
 
 }
